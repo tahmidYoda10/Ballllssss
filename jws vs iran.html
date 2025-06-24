@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball Clash Arena</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            border-bottom: 2px solid #333;
+        }
+
+        .team-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .team-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            border: 3px solid rgba(255,255,255,0.3);
+        }
+
+        .jewish {
+            background: linear-gradient(45deg, #0038b8, #ffffff);
+            color: #0038b8;
+        }
+
+        .iran {
+            background: linear-gradient(45deg, #239f40, #ffffff, #da020e);
+            color: #000;
+        }
+
+        .hearts-display {
+            display: flex;
+            gap: 5px;
+        }
+
+        .heart {
+            width: 20px;
+            height: 20px;
+            background: #ff4757;
+            position: relative;
+            transform: rotate(-45deg);
+            border-radius: 50% 0;
+        }
+
+        .heart:before,
+        .heart:after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            left: 50%;
+            top: 0;
+            background: #ff4757;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        .heart:after {
+            bottom: 0;
+            top: auto;
+            transform: translateX(-50%) translateY(50%);
+        }
+
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 77, 154, 0.1), transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 215, 0, 0.1), transparent 50%),
+                linear-gradient(135deg, #0f0f23, #1a1a3a);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .game-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+            max-width: 200px;
+        }
+
+        .winner-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 1000;
+            border: 3px solid #ffd700;
+            display: none;
+        }
+
+        .winner-popup h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="team-info">
+                <div class="team-logo jewish">JSH</div>
+                <div class="hearts-display" id="jewish-hearts"></div>
+            </div>
+            <div style="font-size: 24px; font-weight: bold; color: #ffd700;">BALL CLASH</div>
+            <div class="team-info">
+                <div class="hearts-display" id="iran-hearts"></div>
+                <div class="team-logo iran">IRN</div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div class="game-info">
+                <strong>Ball Clash Arena</strong><br>
+                • Balls move automatically<br>
+                • Collisions reduce hearts<br>
+                • Collect ❤️ to restore health<br>
+                • Last team standing wins!<br>
+                • Click balls to boost speed
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="resetGame()">New Game</button>
+            <button class="control-btn" onclick="togglePause()">Pause</button>
+        </div>
+
+        <div class="winner-popup" id="winnerPopup">
+            <h2 id="winnerText"></h2>
+            <p>Click New Game to play again!</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 80;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game variables
+        let balls = [];
+        let hearts = [];
+        let gameRunning = true;
+        let gamePaused = false;
+        let lastHeartSpawn = 0;
+        let gameTime = 0;
+
+        // Game settings
+        const HEART_SPAWN_INTERVAL = 3000; // 3 seconds
+        const MAX_HEARTS_ON_FIELD = 5;
+        const COLLISION_DAMAGE = 1;
+        const HEART_HEAL = 1;
+        const MAX_HEALTH = 5;
+
+        // Ball class
+        class Ball {
+            constructor(x, y, team) {
+                this.x = x;
+                this.y = y;
+                this.team = team;
+                this.radius = 30;
+                this.health = MAX_HEALTH;
+                this.maxHealth = MAX_HEALTH;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.color = team === 'jewish' ? '#0038b8' : '#239f40';
+                this.secondaryColor = team === 'jewish' ? '#ffffff' : '#ffffff';
+                this.lastCollision = 0;
+                this.speedBoost = 1;
+                this.boostTime = 0;
+                this.invulnerable = 0;
+            }
+
+            update() {
+                if (!gameRunning || gamePaused) return;
+
+                // Update speed boost
+                if (this.boostTime > 0) {
+                    this.boostTime--;
+                    this.speedBoost = 2;
+                } else {
+                    this.speedBoost = 1;
+                }
+
+                // Update invulnerability
+                if (this.invulnerable > 0) {
+                    this.invulnerable--;
+                }
+
+                // Move
+                this.x += this.vx * this.speedBoost;
+                this.y += this.vy * this.speedBoost;
+
+                // Bounce off walls
+                if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
+                    this.vx *= -1;
+                    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                }
+                if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
+                    this.vy *= -1;
+                    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+                }
+
+                // Random direction changes
+                if (Math.random() < 0.01) {
+                    this.vx += (Math.random() - 0.5) * 0.5;
+                    this.vy += (Math.random() - 0.5) * 0.5;
+                    
+                    // Limit speed
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > 5) {
+                        this.vx = (this.vx / speed) * 5;
+                        this.vy = (this.vy / speed) * 5;
+                    }
+                }
+
+                // Check collisions with other balls
+                this.checkBallCollisions();
+                
+                // Check heart collection
+                this.checkHeartCollection();
+            }
+
+            checkBallCollisions() {
+                balls.forEach(other => {
+                    if (other === this || other.team === this.team) return;
+                    
+                    const dx = this.x - other.x;
+                    const dy = this.y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < this.radius + other.radius) {
+                        if (this.invulnerable === 0 && other.invulnerable === 0) {
+                            // Deal damage
+                            this.takeDamage(COLLISION_DAMAGE);
+                            other.takeDamage(COLLISION_DAMAGE);
+                            
+                            // Set invulnerability frames
+                            this.invulnerable = 60; // 1 second at 60fps
+                            other.invulnerable = 60;
+                            
+                            // Bounce apart
+                            const angle = Math.atan2(dy, dx);
+                            const force = 3;
+                            this.vx = Math.cos(angle) * force;
+                            this.vy = Math.sin(angle) * force;
+                            other.vx = -Math.cos(angle) * force;
+                            other.vy = -Math.sin(angle) * force;
+                        }
+                    }
+                });
+            }
+
+            checkHeartCollection() {
+                hearts.forEach((heart, index) => {
+                    const dx = this.x - heart.x;
+                    const dy = this.y - heart.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < this.radius + heart.radius) {
+                        this.heal(HEART_HEAL);
+                        hearts.splice(index, 1);
+                    }
+                });
+            }
+
+            takeDamage(amount) {
+                this.health = Math.max(0, this.health - amount);
+                if (this.health <= 0) {
+                    this.die();
+                }
+            }
+
+            heal(amount) {
+                this.health = Math.min(this.maxHealth, this.health + amount);
+            }
+
+            die() {
+                const index = balls.indexOf(this);
+                if (index > -1) {
+                    balls.splice(index, 1);
+                }
+                checkWinCondition();
+            }
+
+            boost() {
+                this.boostTime = 120; // 2 seconds
+            }
+
+            draw() {
+                ctx.save();
+                
+                // Invulnerability flashing
+                if (this.invulnerable > 0 && Math.floor(this.invulnerable / 10) % 2) {
+                    ctx.globalAlpha = 0.5;
+                }
+                
+                // Shadow
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 15;
+                ctx.shadowOffsetX = 5;
+                ctx.shadowOffsetY = 5;
+                
+                // Main ball
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius/3, this.y - this.radius/3, 0,
+                    this.x, this.y, this.radius
+                );
+                gradient.addColorStop(0, this.secondaryColor);
+                gradient.addColorStop(0.7, this.color);
+                gradient.addColorStop(1, this.color);
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Speed boost effect
+                if (this.speedBoost > 1) {
+                    ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Team logo
+                ctx.shadowColor = 'transparent';
+                ctx.fillStyle = this.team === 'jewish' ? '#0038b8' : '#da020e';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    this.team === 'jewish' ? 'JSH' : 'IRN',
+                    this.x, this.y
+                );
+                
+                // Health bar
+                this.drawHealthBar();
+                
+                ctx.restore();
+            }
+
+            drawHealthBar() {
+                const barWidth = this.radius * 2;
+                const barHeight = 6;
+                const barX = this.x - barWidth / 2;
+                const barY = this.y - this.radius - 15;
+                
+                // Background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health
+                const healthPercent = this.health / this.maxHealth;
+                ctx.fillStyle = healthPercent > 0.5 ? '#2ecc71' : healthPercent > 0.25 ? '#f39c12' : '#e74c3c';
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                
+                // Border
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+            }
+        }
+
+        // Heart class
+        class Heart {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 15;
+                this.pulse = 0;
+                this.collected = false;
+            }
+
+            update() {
+                this.pulse += 0.1;
+            }
+
+            draw() {
+                ctx.save();
+                
+                const scale = 1 + Math.sin(this.pulse) * 0.1;
+                const size = this.radius * scale;
+                
+                // Glow effect
+                ctx.shadowColor = '#ff4757';
+                ctx.shadowBlur = 20;
+                
+                // Heart shape
+                ctx.fillStyle = '#ff4757';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + size/4);
+                
+                // Left curve
+                ctx.bezierCurveTo(this.x, this.y - size/2, this.x - size, this.y - size/2, this.x - size, this.y + size/4);
+                ctx.bezierCurveTo(this.x - size, this.y + size, this.x, this.y + size * 1.5, this.x, this.y + size * 1.5);
+                
+                // Right curve
+                ctx.bezierCurveTo(this.x, this.y + size * 1.5, this.x + size, this.y + size, this.x + size, this.y + size/4);
+                ctx.bezierCurveTo(this.x + size, this.y - size/2, this.x, this.y - size/2, this.x, this.y + size/4);
+                
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Initialize game
+        function initGame() {
+            balls = [];
+            hearts = [];
+            gameTime = 0;
+            lastHeartSpawn = 0;
+            gameRunning = true;
+            gamePaused = false;
+            
+            // Create only 2 balls - one for each team
+            balls.push(new Ball(
+                canvas.width * 0.25,
+                canvas.height / 2,
+                'jewish'
+            ));
+            
+            balls.push(new Ball(
+                canvas.width * 0.75,
+                canvas.height / 2,
+                'iran'
+            ));
+            
+            updateHeartsDisplay();
+            document.getElementById('winnerPopup').style.display = 'none';
+        }
+
+        function spawnHeart() {
+            if (hearts.length < MAX_HEARTS_ON_FIELD) {
+                const x = 100 + Math.random() * (canvas.width - 200);
+                const y = 100 + Math.random() * (canvas.height - 200);
+                hearts.push(new Heart(x, y));
+            }
+        }
+
+        function updateHeartsDisplay() {
+            const jewishBall = balls.find(b => b.team === 'jewish');
+            const iranBall = balls.find(b => b.team === 'iran');
+            
+            const jewishHearts = jewishBall ? jewishBall.health : 0;
+            const iranHearts = iranBall ? iranBall.health : 0;
+            
+            // Update Jewish hearts
+            const jewishContainer = document.getElementById('jewish-hearts');
+            jewishContainer.innerHTML = '';
+            for (let i = 0; i < jewishHearts; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'heart';
+                jewishContainer.appendChild(heart);
+            }
+            
+            // Update Iran hearts
+            const iranContainer = document.getElementById('iran-hearts');
+            iranContainer.innerHTML = '';
+            for (let i = 0; i < iranHearts; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'heart';
+                iranContainer.appendChild(heart);
+            }
+        }
+
+        function checkWinCondition() {
+            const jewishBall = balls.find(b => b.team === 'jewish');
+            const iranBall = balls.find(b => b.team === 'iran');
+            
+            if (!jewishBall) {
+                gameRunning = false;
+                showWinner('Iran');
+            } else if (!iranBall) {
+                gameRunning = false;
+                showWinner('Jewish');
+            }
+        }
+
+        function showWinner(team) {
+            document.getElementById('winnerText').textContent = `${team} Wins!`;
+            document.getElementById('winnerPopup').style.display = 'block';
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        function togglePause() {
+            gamePaused = !gamePaused;
+        }
+
+        // Mouse/touch events
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            balls.forEach(ball => {
+                const dx = x - ball.x;
+                const dy = y - ball.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < ball.radius) {
+                    ball.boost();
+                }
+            });
+        });
+
+        // Game loop
+        function gameLoop() {
+            gameTime++;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(15, 15, 35, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameRunning && !gamePaused) {
+                // Spawn hearts
+                if (gameTime - lastHeartSpawn > HEART_SPAWN_INTERVAL / 16.67) {
+                    spawnHeart();
+                    lastHeartSpawn = gameTime;
+                }
+                
+                // Update balls
+                balls.forEach(ball => ball.update());
+                
+                // Update hearts
+                hearts.forEach(heart => heart.update());
+                
+                // Update hearts display
+                updateHeartsDisplay();
+            }
+            
+            // Draw everything
+            hearts.forEach(heart => heart.draw());
+            balls.forEach(ball => ball.draw());
+            
+            // Draw arena border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        initGame();
+        gameLoop();
+    </script>
+</body>
+</html>
